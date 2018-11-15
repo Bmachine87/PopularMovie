@@ -14,6 +14,7 @@ public class Movie implements Parcelable {
     private String mReleaseDate;
     private static final String MOVIE_POSTER_URL = "http://image.tmdb.org/t/p/";
 
+    public Movie() { }
     /**
      * BASE CONSTRUCTOR
      * @param id integer id of the movie
