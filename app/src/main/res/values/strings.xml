@@ -3,4 +3,6 @@
     <string name="poster_size">w342</string>
     <string name="API_KEY">0167c9f2c8b945f7571a90ebfd9bfed3</string>
     <string name="Recent">Recent</string>
+    <string name="sort_by">Sort By</string>
+    <string name="sort_by_default">Recent</string>
 </resources>
