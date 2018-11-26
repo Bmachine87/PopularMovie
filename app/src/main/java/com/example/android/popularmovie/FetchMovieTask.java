@@ -108,7 +108,7 @@ public class FetchMovieTask extends AsyncTask<String, Void, String> {
     @Override
     protected void onPostExecute(String movieResult) {
         if (movieResult != null) {
-            return movieJSON(movieResult);
+            movieJSON(movieResult);
         } else {
             jsonErrorToast.setText("Cannot return results, try again later");
             jsonErrorToast.setDuration(Toast.LENGTH_SHORT);

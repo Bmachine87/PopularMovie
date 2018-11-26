@@ -4,8 +4,7 @@
     xmlns:tools="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    tools:context=".MoviesDetailActvity">
+    android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"

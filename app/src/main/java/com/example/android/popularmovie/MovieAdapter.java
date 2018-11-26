@@ -22,7 +22,7 @@ public class MovieAdapter extends BaseAdapter {
     }
     @Override
     public int getCount() {
-        return Movie.movieImages.size().;
+        return MainActivity.movieImages.size();
     }
 
     @Override
@@ -47,15 +47,15 @@ public class MovieAdapter extends BaseAdapter {
 
             viewHolder = new ViewHolder();
 
-            viewHolder.mImageViewMovie = (ImageView) convertView.findViewById(R.id.iv_image);
+            viewHolder.mImageViewMovie = (ImageView) convertView.findViewById(R.id.imageview_image);
             convertView.setTag(viewHolder);
         } else {
             viewHolder = (ViewHolder)convertView.getTag();
         }
 
-        //TODO: Import picasso and review for placeholder, error, into
-        Picasso.with(mContext).load(Movie.movieImages.get(position))
-                .placeholder(R.drawable.placeholder)
+        Picasso.with(mContext)
+                .load(MainActivity.movieImages.get(i))
+                .placeholder(R.drawable.placeholder_image)
                 .error(R.drawable.error)
                 .into(viewHolder.mImageViewMovie);
 
