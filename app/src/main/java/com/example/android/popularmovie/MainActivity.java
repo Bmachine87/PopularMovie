@@ -1,136 +1,152 @@
 package com.example.android.popularmovie;
 
+import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.LayoutInflater;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.util.DisplayMetrics;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.GridView;
-import android.widget.Toast;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 
 import java.util.ArrayList;
+import java.util.List;
+
+import butterknife.ButterKnife;
 
 public class MainActivity extends AppCompatActivity {
 
     public static ArrayList<Movie> movieList;
-    public static ArrayList<String> movieImages;
     public static MovieAdapter movieAdapter;
-    public static String sortBy;
-    public static String lastSortBy;
-    public static GridView movieGridView;
-    public static Toast toast;
+    public RecyclerView recyclerView;
+    public RecyclerViewScrollListener mScrollListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.bind(this);
 
-        android.support.v7.widget.Toolbar toolbar =
-                (android.support.v7.widget.Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        GridLayoutManager gridLayoutManager = new GridLayoutManager(this, numOfColumns());
+        recyclerView.setLayoutManager(gridLayoutManager);
 
-        if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction()
-                    .add(R.id.fragment_movie_details, new MovieFragment())
-                    .commit();
-        }
+        recyclerView.addItemDecoration(new GridItemDecor(this));
+
+        movieAdapter = new MovieAdapter(this,
+                (MovieAdapter.MovieAdapterOnClickHandler) this);
+        recyclerView.setAdapter(movieAdapter);
+
+        mScrollListener = new RecyclerViewScrollListener(gridLayoutManager) {
+            @Override
+            public void onLoadMore(int page) {
+                fetchNewMovies(page);
+            }
+        };
+        recyclerView.addOnScrollListener(mScrollListener);
+
+//        mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+//            @Override
+//            public void onRefresh() {
+//                populateUI();
+//            }
+//        });
     }
 
-    // Creates OptionMenu in mainactivity
+    private void populateUI() {
+        mScrollListener.resetState();
+        movieAdapter.clearMovieList();
+        fetchNewMovies(1);
+    }
+
+    private void fetchNewMovies(int page) {
+        int sorting = Settings.getSort(this);
+        String sortMethod = getResources().getStringArray(R.array.pref_sort_by_values)[sorting];
+
+        FetchMovieTask moviesTask = new FetchMovieTask(getString(R.string.language),
+                (AsyncTaskCompleteListener<List<Movie>>) this);
+        moviesTask.execute(sortMethod, String.valueOf(page));
+    }
+
+
+    public void onClick(Movie movie) {
+        Intent intent = new Intent(MainActivity.this, MovieDetailsActivity.class);
+        intent.putExtra(MovieDetailsActivity.MOVIE_DETAILS_INTENT_KEY, movie);
+        startActivity(intent);
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        super.onCreateOptionsMenu(menu);
-        getMenuInflater().inflate(R.menu.main_activity_menu, menu);
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_activity_menu, menu);
+
+        MenuItem item = menu.findItem(R.id.recent);
+        Spinner spinner = (Spinner) item.getActionView();
+
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+                R.array.pref_sort_by_keys, R.layout.settings);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+
+        spinner.setSelection(Settings.getSort(MainActivity.this));
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                Settings.setSort(MainActivity.this, i);
+                populateUI();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+            }
+        });
+
         return true;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-
-        if(id == R.id.recent) {
-            startActivity(new Intent(this, SortMovieActivity.class));
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
+    private int numOfColumns() {
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        // You can change this divider to adjust the size of the poster
+        int widthDivider = 500;
+        int width = displayMetrics.widthPixels;
+        int nColumns = width / widthDivider;
+        if (nColumns < 2) return 2;
+        return nColumns;
     }
 
-    public static class MovieFragment extends Fragment {
-        public MovieFragment() {}
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-            View rootV = inflater.inflate(R.layout.movie_fragment, container, false);
-            setHasOptionsMenu(true);
-
-            movieGridView = (GridView) rootV.findViewById(R.id.gridview_movie);
-            //TODO: Verify you do not need to setNumColumns or set orientation
-            movieGridView.setAdapter(movieAdapter);
-            movieGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-                    Intent intent = new Intent(getActivity(), MovieDetailsActivity.class);
-                    intent.putExtra("movie_id", movieList.get(position).getmID());
-                    intent.putExtra("movie_position", position);
-                    startActivity(intent);
-                }
-            });
-
-            toast = Toast.makeText(rootV.getContext(),"",Toast.LENGTH_SHORT);
-            return rootV;
+    private boolean isOnline() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager != null) {
+            NetworkInfo netInfo = connectivityManager.getActiveNetworkInfo();
+            return netInfo != null && netInfo.isConnectedOrConnecting();
         }
-
-        @Override
-        public void onSaveInstanceState(@NonNull Bundle outState) {
-            outState.putParcelableArrayList("movies", MainActivity.movieList);
-            outState.putStringArrayList("images", MainActivity.movieImages);
-            super.onSaveInstanceState(outState);
-        }
-
-        @Override
-        public void onCreate(@Nullable Bundle savedInstanceState) {
-            if(savedInstanceState != null && savedInstanceState.containsKey("movies")) {
-                movieList = savedInstanceState.getParcelableArrayList("movies");
-                movieImages = savedInstanceState.getStringArrayList("images");
-            } else {
-                movieList = new ArrayList<Movie>();
-                movieImages = new ArrayList<String>();
-                movieAdapter = new MovieAdapter(getActivity());
-                updateMovieList();
-            }
-            super.onCreate(savedInstanceState);
-        }
-
-        //TODO: Update with SharedPreferences
-        private void updateMovieList() {
-            SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
-            sortBy = sharedPrefs.getString(getString(R.string.sort_by), getString(R.string.sort_by_default));
-            new FetchMovieTask().execute(sortBy, null);
-
-        }
-
-        //TODO: Update MovieFragment onResume (requires SharedPreferences
-        @Override
-        public void onResume() {
-            SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
-            sortBy = sharedPrefs.getString(getString(R.string.sort_by), getString(R.string.sort_by_default));
-
-            if(lastSortBy != null && !sortBy.equals(lastSortBy)) {
-                movieList = new ArrayList<Movie>();
-                movieImages = new ArrayList<String>();
-                updateMovieList();
-            }
-            lastSortBy = sortBy;
-            super.onResume();
-        }
+        return false;
     }
+
+//    @Override
+//    public void onTaskStart() {
+//        if (!isOnline()) {
+//            internetStatusTv.setVisibility(View.VISIBLE);
+//        }
+//    }
+//
+//    @Override
+//    public void onTaskComplete(List<Movie> result) {
+//        mSwipeRefreshLayout.setRefreshing(false);
+//        if (result != null) {
+//            internetStatusTv.setVisibility(View.GONE);
+//            mMoviesAdapter.addMoviesList(result);
+//        }
+//    }
+
+
 
 }

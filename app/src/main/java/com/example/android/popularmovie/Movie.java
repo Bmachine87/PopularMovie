@@ -6,7 +6,6 @@ import android.os.Parcelable;
 
 public class Movie implements Parcelable {
     // Set up member variables for the movie
-    private int mID;
     private String mTitle;
     private String mPoster;
     private String mRating;
@@ -17,16 +16,14 @@ public class Movie implements Parcelable {
     public Movie() { }
     /**
      * BASE CONSTRUCTOR
-     * @param id integer id of the movie
      * @param movieTitle string of the movie title
      * @param moviePoster string of the path of movie poster
      * @param movieRating string of the movie rating average
      * @param movieDescription string of the movie synopsis
      * @param movieReleaseDate string of the movie release date
      */
-    public Movie(int id, String movieTitle, String moviePoster, String movieRating,
+    public Movie(String movieTitle, String moviePoster, String movieRating,
                  String movieDescription, String movieReleaseDate) {
-        mID = id;
         mTitle = movieTitle;
         mPoster = moviePoster;
         mRating = movieRating;
@@ -39,7 +36,6 @@ public class Movie implements Parcelable {
      * @param parcel the object that contains the movie data
      */
     private Movie(Parcel parcel) {
-        mID = parcel.readInt();
         mTitle = parcel.readString();
         mPoster = parcel.readString();
         mRating = parcel.readString();
@@ -48,9 +44,6 @@ public class Movie implements Parcelable {
     }
 
     // Set up get/set methods for class properties
-    public int getmID() { return mID; }
-    public void setmID(int id) { mID = id; }
-
     public String getmTitle() { return mTitle; }
     public void setmTitle(String movieTitle) { mTitle = movieTitle; }
 
@@ -82,7 +75,6 @@ public class Movie implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel parcel, int i) {
-        parcel.writeInt(mID);
         parcel.writeString(mTitle);
         parcel.writeString(mPoster);
         parcel.writeString(mRating);

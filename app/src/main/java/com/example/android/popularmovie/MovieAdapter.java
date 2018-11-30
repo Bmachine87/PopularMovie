@@ -1,64 +1,93 @@
 package com.example.android.popularmovie;
 
 import android.content.Context;
+import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
 
-public class MovieAdapter extends BaseAdapter {
+import java.util.ArrayList;
+import java.util.List;
 
-    private Context mContext;
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
-    public MovieAdapter(Context context) {
+public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieAdapterViewHolder> {
+
+    private final Context mContext;
+    private final MovieAdapterOnClickHandler movieAdapterClickHandler;
+    private List<Movie> movieList;
+
+    public MovieAdapter(Context context, MovieAdapterOnClickHandler clickHandler) {
         this.mContext = context;
-    }
-
-    public static class ViewHolder {
-        ImageView mImageViewMovie;
-    }
-    @Override
-    public int getCount() {
-        return MainActivity.movieImages.size();
+        this.movieAdapterClickHandler = clickHandler;
     }
 
     @Override
-    public Object getItem(int i) {
-        return null;
+    public MovieAdapterViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(mContext).inflate(R.layout.item_movie, parent,false);
+        return new MovieAdapterViewHolder(view);
     }
 
     @Override
-    public long getItemId(int i) {
-        return i;
+    public void onBindViewHolder(MovieAdapterViewHolder holder, int position) {
+        Movie movie = movieList.get(position);
+
+        holder.movieTitleTV.setText(movie.getmTitle());
+        Picasso.with(mContext).load(movie.getmPoster()).placeholder(R.drawable.placeholder_image)
+                .error(R.drawable.error).into(holder.moviePosterIV);
     }
 
     @Override
-    public View getView(final int i, View convertView, ViewGroup parent) {
-        ViewHolder viewHolder;
-
-        //TODO: Review this logic
-        if(convertView == null) {
-            LayoutInflater inflater = (LayoutInflater) parent.getContext()
-                    .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            convertView = inflater.inflate(R.layout.item_movie, parent, false);
-
-            viewHolder = new ViewHolder();
-
-            viewHolder.mImageViewMovie = (ImageView) convertView.findViewById(R.id.imageview_image);
-            convertView.setTag(viewHolder);
+    public int getItemCount() {
+        if(movieList == null) {
+            return 0;
         } else {
-            viewHolder = (ViewHolder)convertView.getTag();
+            return movieList.size();
+        }
+    }
+
+    void clearMovieList() {
+        if(movieList == null) {
+            movieList = new ArrayList<>();
+        } else {
+            int itemCount = movieList.size();
+            movieList.clear();
+            notifyItemRangeRemoved(0, itemCount);
+        }
+    }
+
+    void addMovieList(List<Movie> movieList) {
+        int posStart = movieList.size();
+        movieList.addAll(movieList);
+        notifyItemRangeInserted(posStart, movieList.size());
+    }
+
+    public interface MovieAdapterOnClickHandler {
+        void onClick(Movie movie);
+    }
+
+    class MovieAdapterViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+        @BindView(R.id.movieTitle)
+        TextView movieTitleTV;
+        @BindView(R.id.movieImage)
+        ImageView moviePosterIV;
+
+        MovieAdapterViewHolder(View view) {
+            super(view);
+            ButterKnife.bind(this, view);
+            view.setOnClickListener(this);
         }
 
-        Picasso.with(mContext)
-                .load(MainActivity.movieImages.get(i))
-                .placeholder(R.drawable.placeholder_image)
-                .error(R.drawable.error)
-                .into(viewHolder.mImageViewMovie);
+        @Override
+        public void onClick(View v) {
+            Movie movie = movieList.get(getAdapterPosition());
+            movieAdapterClickHandler.onClick(movie);
 
-        return convertView;
+        }
     }
 }

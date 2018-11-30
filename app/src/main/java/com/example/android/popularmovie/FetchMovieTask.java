@@ -1,10 +1,7 @@
 package com.example.android.popularmovie;
 
-import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.util.Log;
-import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -16,134 +13,106 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
-public class FetchMovieTask extends AsyncTask<String, Void, String> {
-    Toast jsonErrorToast = MainActivity.toast;
-    String API_KEY = String.valueOf(R.string.API_KEY);
+public class FetchMovieTask extends AsyncTask<String, Void, List<Movie>> {
+    // JSON Keys
+    private static final String TITLE = "title";
+    private static final String POSTER = "poster_path";
+    private static final String DESCRIPTION = "overview";
+    private static final String RATING = "vote_average";
+    private static final String RELEASE = "release_date";
+
+    private final String language;
+    private final AsyncTaskCompleteListener<List<Movie>> listener;
+
+    FetchMovieTask(String language, AsyncTaskCompleteListener<List<Movie>> listener) {
+        this.language = language;
+        this.listener = listener;
+    }
 
     @Override
     protected void onPreExecute() {
         super.onPreExecute();
+        listener.onTaskStart();
     }
 
     @Override
-    protected String doInBackground(String... params) {
-        if(params.length== 0) {
-            return null;
-        }
-
-        String sortBy = params[0];
-
-        // Build URI
-        Uri builtUri = Uri.parse(MovieAPI.API_URL).buildUpon()
-                .appendPath(sortBy)
-                .appendQueryParameter("api key", API_KEY)
-                .build();
-
-        String response;
-        // return JSON response if available; return toast error if not available
+    protected List<Movie> doInBackground(String... params) {
         try {
-            response = getMovieJSON(builtUri);
-            return response;
+            Uri uri = Uri.parse("https://api.themoviedb.org/3/movie/").buildUpon()
+                    .appendPath(params[0])
+                    .appendQueryParameter("api_key", String.valueOf(R.string.API_KEY))
+                    .appendQueryParameter("language", language)
+                    .appendQueryParameter("page", params[1])
+                    .build();
+            URL url = new URL(uri.toString());
+
+            String jsonMoviesResponse = getResponseFromHttpUrl(url);
+
+            return getMoviesDataFromJson(jsonMoviesResponse);
+
         } catch (Exception e) {
-            jsonErrorToast.setText("This is not the movie you are looking for");
-            jsonErrorToast.setDuration(Toast.LENGTH_SHORT);
-            jsonErrorToast.show();
-            return null;
-        }
-    }
-
-    private String getMovieJSON(Uri builtUri) {
-        // init inputStream
-        InputStream inputStream;
-        InputStreamReader inputStreamReader;
-        StringBuffer stringBuffer;
-        HttpURLConnection httpURLConnection;
-        BufferedReader reader;
-        String movieJSON;
-
-        try {
-            /*
-            Create new URL from string value of URI, open a connection, set the request method,
-            and open the connection
-            */
-            URL url = new URL(builtUri.toString());
-            httpURLConnection = (HttpURLConnection) url.openConnection();
-            httpURLConnection.setRequestMethod("GET");
-            httpURLConnection.connect();
-
-            /*
-            Get the inputStream from the URL and set up a reader for the inputStream.
-            Set up a buffer and append the info returned from the reader to the readerLine
-             */
-            inputStream = httpURLConnection.getInputStream();
-            inputStreamReader = new InputStreamReader(inputStream);
-            stringBuffer = new StringBuffer();
-            if(inputStream == null) {
-                return null;
-            }
-
-            reader = new BufferedReader(inputStreamReader);
-            String readerLine = reader.readLine();
-            //Use a while because we want to read everything until it's empty
-            while ((readerLine != null)) {
-                stringBuffer.append(readerLine + "\n");
-            }
-
-            if(stringBuffer.length() == 0) {
-                return null;
-            }
-
-            movieJSON = stringBuffer.toString();
-        } catch (IOException e) {
-            Log.v("FetchMovieTask", "Exception caught, check the stringBuffer");
             e.printStackTrace();
             return null;
         }
-
-        // get your movieJSON here!
-        return movieJSON;
     }
 
     @Override
-    protected void onPostExecute(String movieResult) {
-        if (movieResult != null) {
-            movieJSON(movieResult);
-        } else {
-            jsonErrorToast.setText("Cannot return results, try again later");
-            jsonErrorToast.setDuration(Toast.LENGTH_SHORT);
-            jsonErrorToast.show();
+    protected void onPostExecute(List<Movie> moviesList) {
+        super.onPostExecute(moviesList);
+        listener.onTaskComplete(moviesList);
+    }
+
+    private String getResponseFromHttpUrl(URL url) throws IOException {
+        HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+        try {
+            InputStream inputStream = urlConnection.getInputStream();
+            if (inputStream == null) {
+                return null;
+            }
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+
+            StringBuilder builder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                builder.append(line).append("\n");
+            }
+
+            if (builder.length() == 0) {
+                return null;
+            }
+
+            return builder.toString();
+        } finally {
+            urlConnection.disconnect();
         }
     }
 
-    public static void movieJSON(String movieStringJSON) {
-        //TODO: be sure to clear out any previous value from the mainActivty
+    private List<Movie> getMoviesDataFromJson(String moviesJsonStr) throws JSONException {
+        List<Movie> moviesList = new ArrayList<>();
 
-        try {
-            if(movieStringJSON != null) {
-                JSONObject movieObject = new JSONObject(movieStringJSON);
-                JSONArray movieArray = movieObject.getJSONArray("results");
+        JSONObject jsonObject = new JSONObject(moviesJsonStr);
+        JSONArray movies = jsonObject.getJSONArray("results");
+        for (int i = 0; i < movies.length(); i++) {
+            JSONObject movieDetail = movies.getJSONObject(i);
 
-                for(int i = 0; i < movieArray.length(); i++) {
-                    Movie movieInfo = new Movie();
-                    movieInfo.setmID(movieObject.getInt("id"));
-                    movieInfo.setmTitle(movieObject.getString("title"));
-                    //TODO: Update setmPoster logic to handle null response with generic image
-                    movieInfo.setmPoster(movieObject.getString("poster_path"));
-                    movieInfo.setmRating(movieObject.getString("vote_average"));
-                    //TODO: Update setmDescription logic to handle null response with custom msg
-                    movieInfo.setmDescription(movieObject.getString("overview"));
-                    //TODO: Update setmReleaseDate logic to parse and reformat the date (try/catch)
-                    movieInfo.setmReleaseDate(movieObject.getString("release_date"));
-                }
+            /* movieName is original name of movie
+             * posterPath is image url of the poster of movie
+             * movieDescription is the plot of movie
+             * userRating is user rating of movie
+             * releaseDate is release date of movie
+            */
 
-            }
-        } catch (JSONException e){
-            Log.v("FetchMovieTask", "Error with JSON parsing");
-            e.printStackTrace();
+            String movieName = movieDetail.getString(TITLE);
+            String posterPath = "http://image.tmdb.org/t/p/w500/" + movieDetail.getString(POSTER);
+            String movieDescription = movieDetail.getString(DESCRIPTION);
+            String userRating = movieDetail.getString(RATING);
+            String releaseDate = movieDetail.getString(RELEASE);
+
+            moviesList.add(new Movie(movieName, posterPath, movieDescription, userRating, releaseDate));
         }
-
-        //TODO: add to Mainactivity's movieList
-        //TODO: update MainActivity's movieAdapter that data set has changed
+        return moviesList;
     }
 }

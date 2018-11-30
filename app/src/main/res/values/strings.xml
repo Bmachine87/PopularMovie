@@ -3,6 +3,15 @@
     <string name="poster_size">w342</string>
     <string name="API_KEY">0167c9f2c8b945f7571a90ebfd9bfed3</string>
     <string name="Recent">Recent</string>
+
+    <string name="language">en-US</string>
+
     <string name="sort_by">Sort By</string>
     <string name="sort_by_default">Recent</string>
+
+    <string name="popularity">popular</string>
+    <string name="vote_average">top_rated</string>
+
+    <string name="most_popular">Most Popular</string>
+    <string name="highest_rated">Highest Rated</string>
 </resources>

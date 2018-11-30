@@ -16,10 +16,14 @@ import android.widget.TextView;
 import com.squareup.picasso.Picasso;
 
 public class MovieDetailsActivity extends AppCompatActivity {
+
+
     public static Movie movie;
     public static Intent intent;
     public static TextView title, release, rating, synopsis;
     public static ImageView poster;
+
+    public static final String MOVIE_DETAILS_INTENT_KEY = "com.example.android.popularmovie";
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
